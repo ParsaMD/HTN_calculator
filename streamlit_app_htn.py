@@ -33,6 +33,9 @@ edu_levels = [1,2,3,4,5]
 # Load scaler
 scaler = joblib.load("scaler_htn7param.pkl")
 
+# Load feature columns in correct order
+feature_columns = joblib.load("feature_columns_htn7param.pkl")
+
 # List of all models to display
 model_names = [
     'LogisticRegression', 'DecisionTree', 'RandomForest', 'GradientBoosting', 
@@ -58,15 +61,11 @@ for name in model_names + ensemble_names:
 
 # ========== Helper - Preprocessing/New Sample ==========
 def preprocess_sample(form_dict):
-    # Create DataFrame from user input
     df = pd.DataFrame([form_dict])
-
     # Standardize and clip continuous variables
     df[continuous_vars] = scaler.transform(df[continuous_vars])
     df[continuous_vars] = df[continuous_vars].clip(-3, 3)
-
     # One-hot educationyears
-   
     for lev in edu_levels[1:]:
         df[f"edu_{lev}"] = (df["educationyears"] == lev).astype(int)
     # Remove original educationyears column
@@ -111,22 +110,27 @@ with st.form(key="htnml_form"):
     submit = st.form_submit_button("Predict Risk")
 if submit:
     user_input = {
-        "age": age, "dbp": dbp, "sbp": sbp, "bmi": bmi, "energy": energy, "protein": protein, "educationyears": education_value
+        "age": age,
+        "dbp": dbp,
+        "sbp": sbp,
+        "bmi": bmi,
+        "energy": energy,
+        "protein": protein,
+        "educationyears": education_value
     }
     X_input = preprocess_sample(user_input)
+
+    # --- FIX: Reindex to match training column order ---
+    for col in feature_columns:
+        if col not in X_input.columns:
+            X_input[col] = 0
+    X_input = X_input.reindex(columns=feature_columns, fill_value=0)
 
     st.write("## Model Predictions")
     st.caption("All models shown were externally validated (NHANES). Probability = risk of incident hypertension.")
     results = []
-    import joblib
-feature_columns = joblib.load("feature_columns_htn7param.pkl")
-for col in feature_columns:
-    if col not in X_input.columns:
-        X_input[col] = 0
-X_input = X_input[feature_columns]
     for name in model_names + ensemble_names:
         model = models[name]
-       
         try:
             prob = float(model.predict_proba(X_input)[0,1])
         except AttributeError:
