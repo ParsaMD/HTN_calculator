@@ -4,6 +4,22 @@ import numpy as np
 import joblib
 import json
 import os
+from sklearn.base import BaseEstimator, TransformerMixin
+
+class ClippedStandardScaler(BaseEstimator, TransformerMixin):
+    def __init__(self, columns=None):
+        self.columns = columns
+        self.scaler = None
+    def fit(self, X, y=None):
+        from sklearn.preprocessing import StandardScaler
+        self.scaler = StandardScaler()
+        self.scaler.fit(X[self.columns])
+        return self
+    def transform(self, X):
+        X_ = X.copy()
+        X_[self.columns] = self.scaler.transform(X_[self.columns])
+        X_[self.columns] = X_[self.columns].clip(-3,3)
+        return X_
 
 # ========== Load Models and Scaler ==========
 with open("input_vars_htn7param.json","r") as f:
