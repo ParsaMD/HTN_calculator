@@ -118,6 +118,12 @@ if submit:
     st.write("## Model Predictions")
     st.caption("All models shown were externally validated (NHANES). Probability = risk of incident hypertension.")
     results = []
+    import joblib
+feature_columns = joblib.load("feature_columns_htn7param.pkl")
+for col in feature_columns:
+    if col not in X_input.columns:
+        X_input[col] = 0
+X_input = X_input[feature_columns]
     for name in model_names + ensemble_names:
         model = models[name]
        
